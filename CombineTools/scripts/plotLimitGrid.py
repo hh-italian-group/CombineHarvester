@@ -2,6 +2,7 @@
 import CombineHarvester.CombineTools.plotting as plot
 import ROOT
 import argparse
+import math
 
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
@@ -73,14 +74,17 @@ parser.add_argument(
 parser.add_argument(
     '--extra_contour_style', default="", help="""Line style for plotting
     extra contours""")
-parser.add_argument(
-    '--model_file', default=None, help="""Model file for drawing mh
-    exclusion""")
-parser.add_argument(
-    '--mass_histogram', default="m_h", help="""Specify histogram to extract
-     mh exclusion from""")
-args = parser.parse_args()
+parser.add_argument('--model_file', default=None, help="""Model file for drawing mh exclusion and mH isolines""")
+parser.add_argument('--mh_histogram', default="m_h", help="""Specify histogram to extract mh exclusion""")
+parser.add_argument('--mH_histogram', default="m_H", help="""Specify histogram to extract mH isolines""")
+parser.add_argument('--draw_mh_exclusion', action="store_true", help="Draw mh exclusion")
+parser.add_argument('--draw_mH_isolines', action="store_true", help="Draw mH isolines")
+parser.add_argument('--mh_margin', type=float, default=3.0, help="""Allowed mh margin arount 125GeV, [GeV]""")
+parser.add_argument('--mH_values', default=None, help="""List of mH values for which isolines should be drawn""")
+parser.add_argument('--iso_label_draw_margin', type=float, default=0.8,
+                    help="""Relative y margin for isoline labels""")
 
+args = parser.parse_args()
 
 plot.ModTDRStyle(r=0.06 if (args.hist or args.model_hist) is None else 0.17, l=0.12)
 ROOT.gStyle.SetNdivisions(510, 'XYZ')
@@ -105,9 +109,31 @@ h_axis = plot.TH2FromTGraph2D(graphs[types[0]])
 # Get histogram to plot m_h exclusion from the model file if provided
 if args.model_file is not None:
     modelfile = ROOT.TFile(args.model_file)
-    h_mh = modelfile.Get(args.mass_histogram)
+    h_mh = modelfile.Get(args.mh_histogram)
+    h_mH = modelfile.Get(args.mH_histogram)
 else:
     h_mh = None
+    h_mH = None
+
+#Extract mh contours
+mh_excl_contours = []
+mh_central = 125
+if args.draw_mh_exclusion and h_mh is not None:
+    mh_excl_contours.extend(plot.contourFromTH2(h_mh, mh_central - args.mh_margin, 5, frameValue=mh_central))
+    mh_excl_contours.extend(plot.contourFromTH2(h_mh, mh_central + args.mh_margin, 5, frameValue=mh_central))
+
+#Extract mH isolines
+iso_contours = []
+if args.draw_mH_isolines and h_mH is not None:
+    mH_values = [ float(x) for x in args.mH_values.split(',') ]
+    for mH in mH_values:
+        name = 'm_{{H}} = {} GeV'.format(int(mH))
+        print name
+        mH_contours = plot.contourFromTH2(h_mH, mH, 10, frameValue=10000)
+        if mH_contours == None or len(mH_contours) == 0:
+            raise RuntimeError("Unable to extract mH contour for mH = {} GeV".format(mH))
+        iso_contours.append( (name, mH_contours) )
+
 
 #Get extra contours from file, if provided:
 if args.extra_contour_file is not None:
@@ -119,7 +145,7 @@ if args.extra_contour_file is not None:
         extra_contour_names = []
         for i in range(0,len(extra_contour_file_contents)):
             extra_contour_names.append(extra_contour_file_contents[i].GetName())
-            extra_contours_per_index = [extra_contour_file.Get(c) for c in extra_contour_names]
+        extra_contours_per_index = [ ( c, extra_contour_file.Get(c) ) for c in extra_contour_names]
         extra_contours.append(extra_contours_per_index)
 else:
     extra_contours = None
@@ -141,17 +167,8 @@ for c in types:
         for i, cont in enumerate(contours[c]):
             debug.WriteTObject(cont, 'cont_%s_%i' % (c, i))
 
-#Extract mh contours if mh histogram exists:
-if h_mh is not None:
-  h_mh_inverted = h_mh.Clone("mhInverted")
-  for i in range(1,h_mh.GetNbinsX()+1):
-     for j in range(1, h_mh.GetNbinsY()+1):
-         h_mh_inverted.SetBinContent(i,j,1-(1./h_mh.GetBinContent(i,j)))
-  mh122_contours = plot.contourFromTH2(h_mh_inverted, (1-1./122), 5, frameValue=1)
-  mh128_contours = plot.contourFromTH2(h_mh, 128, 5, frameValue=1)
-else : 
-  mh122_contours = None
-  mh128_contours = None
+
+
 
 # Setup the canvas: we'll use a two pad split, with a small top pad to contain
 # the CMS logo and the legend
@@ -251,24 +268,64 @@ if 'obs' in contours:
         gr.Draw(fillstyle)
         gr.Draw('LSAME')
 
-if mh122_contours is not None:
-    for i, gr in enumerate(mh122_contours):
-        plot.Set(gr, LineWidth=2, LineColor=ROOT.kRed,FillStyle=3004,FillColor=ROOT.kRed)
-        gr.Draw(fillstyle)
-        gr.Draw('LSAME')
-    for i, gr in enumerate(mh128_contours):
-        plot.Set(gr, LineWidth=2, LineColor=ROOT.kRed,FillStyle=3004,FillColor=ROOT.kRed)
-        gr.Draw(fillstyle)
-        gr.Draw('LSAME')
+for gr in mh_excl_contours:
+    plot.Set(gr, LineWidth=2, LineColor=ROOT.kRed,FillStyle=3004,FillColor=ROOT.kRed)
+    gr.Draw(fillstyle)
+    gr.Draw('LSAME')
 
 if extra_contours is not None:
     if args.extra_contour_style is not None: 
         contour_styles = args.extra_contour_style.split(',')
     for i in range(0,len(extra_contours)):
-        for gr in extra_contours[i]:
-            plot.Set(gr,LineWidth=2,LineColor=ROOT.kBlue,LineStyle=int(contour_styles[i]))
+        for name,gr in extra_contours[i]:
+            if name[0:3] == "exp":
+                plot.Set(gr,LineWidth=2,LineColor=ROOT.kGreen,LineStyle=int(2))
+            else:
+                plot.Set(gr,LineWidth=2,LineColor=ROOT.kGreen,LineStyle=int(1),FillStyle=3004,FillColor=ROOT.kGreen)
+                gr.Draw(fillstyle)
             gr.Draw('LSAME')
-   
+
+def FindPointForIsoLabel(graph, x_range, y_range, margin):
+    best_n = -1
+    y_optimal = y_range[0] + (y_range[1] - y_range[0]) * margin
+    y_current_optimal = y_optimal + (y_range[1] - y_range[0])
+    for n in range(0, graph.GetN()):
+        x = graph.GetX()[n]
+        y = graph.GetY()[n]
+        if x < x_range[0] or x > x_range[1] or y < y_range[0] or y > y_range[1]: continue
+        y_delta = abs(y - y_optimal)
+        if y_delta < y_current_optimal:
+            best_n = n
+            y_current_optimal = y_delta
+    return best_n
+
+def AddIsoLabel(graph, x_range, y_range, margin, text, color):
+    n = FindPointForIsoLabel(graph, x_range, y_range, margin)
+    if n <= 0: return
+
+    dy = (gr.GetY()[n + 1] - gr.GetY()[n - 1]) / (y_range[1] - y_range[0])
+    dx = (gr.GetX()[n + 1] - gr.GetX()[n - 1]) / (x_range[1] - x_range[0])
+    angle = math.atan2(dy , dx)
+    print 'label: dx = {}. dy = {}, angle = {}'.format(dx, dy, angle)
+
+    shift = 0.008
+    x = gr.GetX()[n] - shift * (x_range[1] - x_range[0]) * math.sin(angle)
+    y = gr.GetY()[n] + shift * (y_range[1] - y_range[0]) * math.cos(angle)
+    iso_label = ROOT.TLatex(x, y, name)
+    iso_label.SetTextAngle(angle * 180 / math.pi)
+    iso_label.SetTextSize(0.018)
+    iso_label.SetTextColor(color)
+    gr.GetListOfFunctions().Add(iso_label)
+    return iso_label
+
+for name, gr_list in iso_contours:
+    for gr in gr_list:
+        color = ROOT.kCyan
+        plot.Set(gr, LineWidth=2, LineColor=color, LineStyle=int(2))
+        x_range = [ float(x) for x in args.x_range.split(',') ]
+        y_range = [ float(y) for y in args.y_range.split(',') ]
+        AddIsoLabel(gr, x_range, y_range, args.iso_label_draw_margin, name, color)
+        gr.Draw('LSAME')
 
 # We just want the top pad to look like a box, so set all the text and tick
 # sizes to zero
@@ -285,8 +342,8 @@ if 'obs' in contours:
     legend.AddEntry(contours['obs'][0], "Observed", "F")
 if 'exp-1' in contours and 'exp+1' in contours:
     legend.AddEntry(contours['exp-1'][0], "#pm 1#sigma Expected", "F")
-if mh122_contours is not None and len(mh122_contours)>0:
-    legend.AddEntry(mh122_contours[0], "m_{h}^{MSSM} #neq 125 #pm 3 GeV","F")
+if len(mh_excl_contours)>0:
+    legend.AddEntry(mh_excl_contours[0], "m_{{h}}^{{MSSM}} #neq {} #pm {} GeV".format(mh_central, args.mh_margin), "F")
 if 'exp0' in contours:
     if 'obs' in contours:
         legend.AddEntry(contours['exp0'][0], "Expected", "L")
@@ -298,7 +355,7 @@ if extra_contours is not None:
     if args.extra_contour_title is not None: 
         contour_title = args.extra_contour_title.split(',')
     for i in range(0,len(contour_title)): 
-        legend.AddEntry(extra_contours[i][0],contour_title[i],"L")
+        legend.AddEntry(extra_contours[i][1][1],contour_title[i],"L")
 legend.Draw()
 
 # Draw logos and titles
