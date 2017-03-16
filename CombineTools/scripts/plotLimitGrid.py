@@ -136,19 +136,16 @@ if args.draw_mH_isolines and h_mH is not None:
 
 
 #Get extra contours from file, if provided:
+extra_contours = []
 if args.extra_contour_file is not None:
     contour_files  = args.extra_contour_file.split(',')
-    extra_contours = []
     for filename in contour_files:
         extra_contour_file = ROOT.TFile(filename)
-        extra_contour_file_contents = extra_contour_file.GetListOfKeys()
-        extra_contour_names = []
-        for i in range(0,len(extra_contour_file_contents)):
-            extra_contour_names.append(extra_contour_file_contents[i].GetName())
-        extra_contours_per_index = [ ( c, extra_contour_file.Get(c) ) for c in extra_contour_names]
+        extra_contours_per_index = []
+        for item in extra_contour_file.GetListOfKeys():
+            name = item.GetName()
+            extra_contours_per_index.append( ( name, extra_contour_file.Get(name) ) )
         extra_contours.append(extra_contours_per_index)
-else:
-    extra_contours = None
 
 # Create the debug output file if requested
 if args.debug_output is not None:
@@ -273,17 +270,15 @@ for gr in mh_excl_contours:
     gr.Draw(fillstyle)
     gr.Draw('LSAME')
 
-if extra_contours is not None:
-    if args.extra_contour_style is not None: 
-        contour_styles = args.extra_contour_style.split(',')
-    for i in range(0,len(extra_contours)):
-        for name,gr in extra_contours[i]:
-            if name[0:3] == "exp":
-                plot.Set(gr,LineWidth=2,LineColor=ROOT.kGreen,LineStyle=int(2))
-            else:
-                plot.Set(gr,LineWidth=2,LineColor=ROOT.kGreen,LineStyle=int(1),FillStyle=3004,FillColor=ROOT.kGreen)
-                gr.Draw(fillstyle)
-            gr.Draw('LSAME')
+for i in range(0,len(extra_contours)):
+    color = ROOT.kBlue
+    for name,gr in extra_contours[i]:
+        if name[0:3] == "exp":
+            plot.Set(gr,LineWidth=2,LineColor=color,LineStyle=int(2))
+        else:
+            plot.Set(gr, LineWidth=-802, LineColor=color, LineStyle=int(1), FillStyle=3004, FillColor=color)
+            #gr.Draw(fillstyle)
+        gr.Draw('LSAME')
 
 def FindPointForIsoLabel(graph, x_range, y_range, margin):
     best_n = -1
@@ -314,17 +309,19 @@ def AddIsoLabel(graph, x_range, y_range, margin, text, color):
     iso_label = ROOT.TLatex(x, y, name)
     iso_label.SetTextAngle(angle * 180 / math.pi)
     iso_label.SetTextSize(0.018)
+    iso_label.SetTextFont(42)
     iso_label.SetTextColor(color)
     gr.GetListOfFunctions().Add(iso_label)
     return iso_label
 
 for name, gr_list in iso_contours:
     for gr in gr_list:
-        color = ROOT.kCyan
-        plot.Set(gr, LineWidth=2, LineColor=color, LineStyle=int(2))
+        line_color = ROOT.TColor.GetColor("#BBBBBB")
+        label_color = ROOT.kGray
+        plot.Set(gr, LineWidth=1, LineColor=line_color, LineStyle=int(3))
         x_range = [ float(x) for x in args.x_range.split(',') ]
         y_range = [ float(y) for y in args.y_range.split(',') ]
-        AddIsoLabel(gr, x_range, y_range, args.iso_label_draw_margin, name, color)
+        AddIsoLabel(gr, x_range, y_range, args.iso_label_draw_margin, name, label_color)
         gr.Draw('LSAME')
 
 # We just want the top pad to look like a box, so set all the text and tick
@@ -336,14 +333,13 @@ plot.Set(h_top.GetYaxis(), LabelSize=0, TitleSize=0, TickLength=0)
 h_top.Draw()
 
 # Draw the legend in the top TPad
-legend = plot.PositionedLegend(0.4, 0.11, 3, 0.015)
+#legend = plot.PositionedLegend(0.4, 0.11, 3, 0.015)
+legend = plot.PositionedLegend(0.5, 0.11, 3, 0.015)
 plot.Set(legend, NColumns=2, Header='#bf{%.0f%% CL Excluded:}' % (args.CL*100.))
 if 'obs' in contours:
     legend.AddEntry(contours['obs'][0], "Observed", "F")
 if 'exp-1' in contours and 'exp+1' in contours:
     legend.AddEntry(contours['exp-1'][0], "#pm 1#sigma Expected", "F")
-if len(mh_excl_contours)>0:
-    legend.AddEntry(mh_excl_contours[0], "m_{{h}}^{{MSSM}} #neq {} #pm {} GeV".format(mh_central, args.mh_margin), "F")
 if 'exp0' in contours:
     if 'obs' in contours:
         legend.AddEntry(contours['exp0'][0], "Expected", "L")
@@ -351,11 +347,13 @@ if 'exp0' in contours:
         legend.AddEntry(contours['exp0'][0], "Expected", "F")
 if 'exp-2' in contours and 'exp+2' in contours:
     legend.AddEntry(contours['exp-2'][0], "#pm 2#sigma Expected", "F")
-if extra_contours is not None:
-    if args.extra_contour_title is not None: 
+if len(mh_excl_contours)>0:
+    legend.AddEntry(mh_excl_contours[0], "m_{{h}}^{{MSSM}} #neq {} #pm {} GeV".format(mh_central, args.mh_margin), "F")
+if len(extra_contours) > 0:
+    if args.extra_contour_title is not None:
         contour_title = args.extra_contour_title.split(',')
-    for i in range(0,len(contour_title)): 
-        legend.AddEntry(extra_contours[i][1][1],contour_title[i],"L")
+    for i in range(0,len(contour_title)):
+        legend.AddEntry(extra_contours[i][0][1],contour_title[i],"L")
 legend.Draw()
 
 # Draw logos and titles
