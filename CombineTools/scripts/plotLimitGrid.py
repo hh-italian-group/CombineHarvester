@@ -122,6 +122,12 @@ if args.draw_mh_exclusion and h_mh is not None:
     mh_excl_contours.extend(plot.contourFromTH2(h_mh, mh_central - args.mh_margin, 5, frameValue=mh_central))
     mh_excl_contours.extend(plot.contourFromTH2(h_mh, mh_central + args.mh_margin, 5, frameValue=mh_central))
 
+# Create the debug output file if requested
+if args.debug_output is not None:
+    debug = ROOT.TFile(args.debug_output, 'RECREATE')
+else:
+    debug = None
+
 #Extract mH isolines
 iso_contours = []
 if args.draw_mH_isolines and h_mH is not None:
@@ -133,6 +139,9 @@ if args.draw_mH_isolines and h_mH is not None:
         if mH_contours == None or len(mH_contours) == 0:
             raise RuntimeError("Unable to extract mH contour for mH = {} GeV".format(mH))
         iso_contours.append( (name, mH_contours) )
+        if debug is not None:
+            for i, cont in enumerate(mH_contours):
+                debug.WriteTObject(cont, 'iso_mH_{}_{}'.format(int(mH), i))
 
 
 #Get extra contours from file, if provided:
@@ -147,11 +156,6 @@ if args.extra_contour_file is not None:
             extra_contours_per_index.append( ( name, extra_contour_file.Get(name) ) )
         extra_contours.append(extra_contours_per_index)
 
-# Create the debug output file if requested
-if args.debug_output is not None:
-    debug = ROOT.TFile(args.debug_output, 'RECREATE')
-else:
-    debug = None
 
 # Fill TH2s by interpolating the TGraph2Ds, then extract contours
 for c in types:
@@ -169,7 +173,7 @@ for c in types:
 
 # Setup the canvas: we'll use a two pad split, with a small top pad to contain
 # the CMS logo and the legend
-canv = ROOT.TCanvas(args.output, args.output)
+canv = ROOT.TCanvas('canvas', 'canvas')
 pads = plot.TwoPadSplit(0.8, 0, 0)
 pads[1].cd()
 h_axis.GetXaxis().SetTitle(args.x_title)
@@ -375,6 +379,9 @@ latex.DrawLatex(0.155, 0.75, args.scenario_label)
 
 canv.Print('.pdf')
 canv.Print('.png')
+if debug is not None:
+    debug.WriteTObject(canv, 'canvas')
+
 canv.Close()
 
 if debug is not None:

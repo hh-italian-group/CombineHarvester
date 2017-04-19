@@ -1529,9 +1529,15 @@ def contourFromTH2(h2in, threshold, minPoints=10, frameValue=1000.):
         print '>> Contour %d has %d Graphs' % (i, contLevel.GetSize())
         for j in xrange(contLevel.GetSize()):
             gr1 = contLevel.At(j)
-            print'\t Graph %d has %d points' % (j, gr1.GetN())
-            if gr1.GetN() > minPoints:
-                ret.Add(gr1.Clone())
+            k = 0
+            gr_out = R.TGraph()
+            for n in range(0, gr1.GetN()):
+                if not math.isnan(gr1.GetX()[n]) and not math.isnan(gr1.GetY()[n]):
+                    gr_out.SetPoint(k, gr1.GetX()[n], gr1.GetY()[n])
+                    k = k + 1
+            print'\t Graph %d has %d points' % (j, gr_out.GetN())
+            if gr_out.GetN() > minPoints:
+                ret.Add(gr_out)
             # // break;
     # backup.cd()
     canv.Close()
