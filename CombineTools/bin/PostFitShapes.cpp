@@ -156,6 +156,17 @@ int main(int argc, char* argv[]) {
       double err = cmb_bin.cp().backgrounds().GetUncertainty();
       cout << boost::format("%-25s %-10.5f\n") % bin %
                   (rate > 0. ? (err / rate) : 0.);
+
+      std::cout << "unc: ";
+      for (auto proc : cmb_bin.process_set()) {
+          ch::CombineHarvester cmb_proc = cmb_bin.cp().process({proc});
+          double proc_rate = cmb_proc.GetRate();
+          double proc_err = cmb_proc.GetUncertainty();
+          cout << boost::format("%s=%5.3f ") % proc %
+                      (proc_rate > 0. ? (proc_err / proc_rate) : 0.);
+      }
+      std::cout << std::endl;
+
     }
   }
 
@@ -229,4 +240,3 @@ int main(int argc, char* argv[]) {
   outfile.Close();
   return 0;
 }
-

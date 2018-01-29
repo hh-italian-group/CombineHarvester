@@ -115,7 +115,7 @@ for src in args.input:
         pads[0].RedrawAxis('g')
         pads[0].GetFrame().Draw()
 
-    # limit.json:X => Draw a single graph for entry X in the json file 
+    # limit.json:X => Draw a single graph for entry X in the json file
     # 'limit.json:X:Title="Blah",LineColor=4,...' =>
     # as before but also apply style options to TGraph
     elif len(splitsrc) >= 2:
@@ -169,8 +169,10 @@ if args.ratio_to is not None:
     ref = plot.LimitTGraphFromJSONFile(splitsrc[0], splitsrc[1])
     for gr_set in graph_sets:
         ratio_set = {}
-        for key in gr_set:
-            ratio_set[key] = plot.GraphDivide(gr_set[key], ref)
+
+        #for key in gr_set:
+        key = 'exp0'
+        ratio_set[key] = plot.GraphDivide(gr_set[key], ref)
         ratio_graph_sets.append(ratio_set)
         plot.DrawLimitBand(pads[1], ratio_graph_sets[-1])
         pads[1].RedrawAxis()

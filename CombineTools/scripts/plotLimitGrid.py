@@ -320,8 +320,10 @@ def AddIsoLabel(graph, x_range, y_range, margin, text, color):
 
 for name, gr_list in iso_contours:
     for gr in gr_list:
-        line_color = ROOT.TColor.GetColor("#BBBBBB")
-        label_color = ROOT.kGray
+        #line_color = ROOT.TColor.GetColor("#BBBBBB")
+        #label_color = ROOT.kGray
+        line_color = ROOT.TColor.GetColor("#454545")
+        label_color = line_color
         plot.Set(gr, LineWidth=1, LineColor=line_color, LineStyle=int(3))
         x_range = [ float(x) for x in args.x_range.split(',') ]
         y_range = [ float(y) for y in args.y_range.split(',') ]
@@ -377,8 +379,8 @@ latex.SetNDC()
 latex.SetTextSize(0.04)
 latex.DrawLatex(0.155, 0.75, args.scenario_label)
 
-canv.Print('.pdf')
-canv.Print('.png')
+canv.Print(args.output + '.pdf')
+canv.Print(args.output + '.png')
 if debug is not None:
     debug.WriteTObject(canv, 'canvas')
 
