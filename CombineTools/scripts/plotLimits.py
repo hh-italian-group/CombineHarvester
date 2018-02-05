@@ -157,12 +157,16 @@ if args.logy:
 
 y_min, y_max = (plot.GetPadYMin(pads[0]), plot.GetPadYMax(pads[0]))
 plot.FixBothRanges(pads[0], y_min if args.logy else 0, 0.05 if args.logy else 0, y_max, 0.25)
+pads[0].SetGridx(1)
+pads[0].SetGridy(1)
 
 ratio_graph_sets = []
 ratio_graphs = []
 
 if args.ratio_to is not None:
     pads[1].cd()
+    pads[1].SetGridx(1)
+    pads[1].SetGridy(1)
     plot.SetupTwoPadSplitAsRatio(pads, axis[0], axis[1], 'Ratio_{}', True, 0.1, 2.4)
     axis[1].SetNdivisions(506, 'Y')
     splitsrc = args.ratio_to.split(':')
