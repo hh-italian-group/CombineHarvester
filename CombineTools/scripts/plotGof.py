@@ -15,6 +15,10 @@ parser.add_argument(
 parser.add_argument(
     '--statistic', default='saturated', help="""Used Test Statistic""")
 parser.add_argument(
+    '--x-min', default=None, type=float, help="""x min""")
+parser.add_argument(
+    '--x-max', default=None, type=float, help="""x max""")
+parser.add_argument(
     '--x-title', default='Goodness of Fit', help="""Title for the x-axis""")
 parser.add_argument(
     '--y-title', default='Number of Toys', help="""Title for the y-axis""")
@@ -104,7 +108,7 @@ if args.statistic in ["AD","KS"]:
         # if key not in titles:
         #     continue
         toy_graph = plot.ToyTGraphFromJSON(js, [args.mass,key,'toy'])
-        toy_hist = plot.makeHist1D("toys", 100, toy_graph)
+        toy_hist = plot.makeHist1D("toys", 100, toy_graph, args.x_min, args.x_max)
         for i in range(toy_graph.GetN()):
             toy_hist.Fill(toy_graph.GetX()[i])
         pValue = js[args.mass][key]["p"]
@@ -177,7 +181,7 @@ else:
         js = json.load(jsfile)
     # graph_sets.append(plot.StandardLimitsFromJSONFile(file, args.show.split(',')))
     toy_graph = plot.ToyTGraphFromJSON(js, [args.mass, "toy"])
-    toy_hist = plot.makeHist1D("toys", 100, toy_graph)
+    toy_hist = plot.makeHist1D("toys", 100, toy_graph, args.x_min, args.x_max)
     for i in range(toy_graph.GetN()):
         toy_hist.Fill(toy_graph.GetX()[i])
     pValue = js[args.mass]["p"]

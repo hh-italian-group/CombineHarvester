@@ -334,7 +334,7 @@ def MultiRatioSplit(split_points, gaps_low, gaps_high):
 
     This is a generalisation of the two pad main/ratio split but for the case
     of multiple ratio pads.
-    
+
     Args:
 
         split_points (list[float]): Height of each ratio pad as a fraction of the
@@ -347,7 +347,7 @@ def MultiRatioSplit(split_points, gaps_low, gaps_high):
         gaps_high (list[float]): Gaps between ratio pad frames created on the
         upper pad side at each boundary. Give a list of zeroes for no gap
         between pad frames.
-    
+
     Returns:
         list[TPad]: List of TPads, indexed from top to bottom on the canvas.
     """
@@ -467,10 +467,10 @@ def GetAxisHist(pad):
 def TFileIsGood(filename):
     """Performs a series of tests on a TFile to ensure that it can be opened
     without errors
-    
+
     Args:
         filename: `str` The name of the TFile to check
-    
+
     Returns:
         `bool` True if the file can opened, is not a zombie, and if ROOT did
         not need to try and recover the contents
@@ -785,11 +785,16 @@ def treeToHist2D(t, x, y, name, cut, xmin, xmax, ymin, ymax, xbins, ybins):
     return h2d
 
 
-def makeHist1D(name, xbins, graph):
-    len_x = graph.GetX()[graph.GetN() - 1] - graph.GetX()[0]
+def makeHist1D(name, xbins, graph, xmin=None, xmax=None):
+    min_x = graph.GetX()[0]
+    if xmin is not None:
+        min_x = xmin
+    max_x = graph.GetX()[graph.GetN() - 1]
+    if xmax is not None:
+        max_x = xmax
+    len_x = max_x - min_x
     binw_x = (len_x * 0.5 / (float(xbins) - 1.)) - 1E-5
-    hist = R.TH1F(
-        name, '', xbins, graph.GetX()[0], graph.GetX()[graph.GetN() - 1] + binw_x)
+    hist = R.TH1F(name, '', xbins, min_x, max_x + binw_x)
     return hist
 
 
@@ -841,7 +846,7 @@ def GraphDifference(graph1,graph2,relative):
         xvals.append(graph1.GetX()[i])
         if relative :
             yvals.append(2*abs(graph1.GetY()[i]-graph2.GetY()[i])/(graph1.GetY()[i]+graph2.GetY()[i]))
-        else: 
+        else:
             yvals.append(2*(graph1.GetY()[i]-graph2.GetY()[i])/(graph1.GetY()[i]+graph2.GetY()[i]))
     diff_graph = R.TGraph(len(xvals),array('d',xvals),array('d',yvals))
     diff_graph.Sort()
@@ -863,13 +868,13 @@ def GraphDivide(num, den):
 def MakeRatioHist(num, den, num_err, den_err):
     """Make a new ratio TH1 from numerator and denominator TH1s with optional
     error propagation
-    
+
     Args:
         num (TH1): Numerator histogram
         den (TH1): Denominator histogram
         num_err (bool): Propagate the error in the numerator TH1
         den_err (bool): Propagate the error in the denominator TH1
-    
+
     Returns:
         TH1: A new TH1 containing the ratio
     """
@@ -1123,7 +1128,7 @@ def FixBothRanges(pad, fix_y_lo, frac_lo, fix_y_hi, frac_hi):
     @endcode
 
     ![](figures/FixBothRanges.png)
-    
+
     Args:
         pad (TPad): A TPad on which histograms and graphs have already been drawn
         fix_y_lo (float): The y value which will end up a fraction `frac_lo` above
@@ -1254,7 +1259,7 @@ def StandardAxes(xaxis, yaxis, var, units):
 
 def DrawCMSLogo(pad, cmsText, extraText, iPosX, relPosX, relPosY, relExtraDY, extraText2='', cmsTextSize=0.8):
     """Blah
-    
+
     Args:
         pad (TYPE): Description
         cmsText (TYPE): Description
@@ -1265,7 +1270,7 @@ def DrawCMSLogo(pad, cmsText, extraText, iPosX, relPosX, relPosY, relExtraDY, ex
         relExtraDY (TYPE): Description
         extraText2 (str): Description
         cmsTextSize (float): Description
-    
+
     Returns:
         TYPE: Description
     """
@@ -1487,7 +1492,7 @@ def DrawLimitBand(pad, graph_dict, draw=['exp2', 'exp1', 'exp0', 'obs'], draw_le
         if draw_legend is None:
             draw_legend = reversed(draw)
         for key in draw_legend:
-            if key in graph_dict: 
+            if key in graph_dict:
                 legend.AddEntry(graph_dict[key],legend_dict[key]['Label'],legend_dict[key]['LegendStyle'])
 
 
@@ -1739,7 +1744,7 @@ def rebin(hist):
     # assume constant binning
     #  binWidthX = hist.GetXaxis().GetBinWidth(1)
     #  binWidthY = hist.GetYaxis().GetBinWidth(1)
-    
+
     #  histRebinned = R.TH2F(histName, histName, 2*hist.GetNbinsX(), hist.GetXaxis().GetXmin()+binWidthX/4, hist.GetXaxis().GetXmax()+binWidthX/4, 2*hist.GetNbinsY(), hist.GetYaxis().GetXmin()+binWidthY/4, hist.GetYaxis().GetXmax()+binWidthY/4)
     histRebinned = R.TH2F(histName, histName, 2 * hist.GetNbinsX() - 1, hist.GetXaxis().GetXmin(),
                           hist.GetXaxis().GetXmax(), 2 * hist.GetNbinsY() - 1, hist.GetYaxis().GetXmin(), hist.GetYaxis().GetXmax())
