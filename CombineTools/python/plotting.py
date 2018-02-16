@@ -853,17 +853,28 @@ def GraphDifference(graph1,graph2,relative):
     return diff_graph
 
 
-def GraphDivide(num, den):
+def GraphDivide(num, den, exclude_absent_points=False):
     res = num.Clone()
-    for i in xrange(num.GetN()):
-        res.GetY()[i] = res.GetY()[i]/den.Eval(res.GetX()[i])
-    if type(res) is R.TGraphAsymmErrors:
-        for i in xrange(num.GetN()):
-            res.GetEYhigh()[i] = res.GetEYhigh()[i]/den.Eval(res.GetX()[i])
-            res.GetEYlow()[i] = res.GetEYlow()[i]/den.Eval(res.GetX()[i])
+    j = 0
+    tolerance = max([ num.GetX()[n] for n in range(0, num.GetN())]) * 1e-5
+    for i in range(0, num.GetN()):
+        point_found = not exclude_absent_points
+        if exclude_absent_points:
+            for k in range(0, den.GetN()):
+                if abs(den.GetX()[k] - num.GetX()[i]) < tolerance:
+                    point_found = True
+                    break
+        if point_found:
+            den_y = den.Eval(num.GetX()[i])
+            res.GetY()[j] = num.GetY()[i] / den_y
+            if type(res) is R.TGraphAsymmErrors:
+                res.GetEYhigh()[j] = num.GetEYhigh()[i] / den_y
+                res.GetEYlow()[j] = num.GetEYlow()[i] / den_y
+            j += 1
+        else:
+            res.RemovePoint(j)
 
     return res
-
 
 def MakeRatioHist(num, den, num_err, den_err):
     """Make a new ratio TH1 from numerator and denominator TH1s with optional

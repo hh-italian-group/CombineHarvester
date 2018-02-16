@@ -170,21 +170,24 @@ if args.ratio_to is not None:
     plot.SetupTwoPadSplitAsRatio(pads, axis[0], axis[1], 'Ratio_{}', True, 0.1, 2.4)
     axis[1].SetNdivisions(506, 'Y')
     splitsrc = args.ratio_to.split(':')
-    ref = plot.LimitTGraphFromJSONFile(splitsrc[0], splitsrc[1])
+    ratio_src_wp = splitsrc[1].split(',')
+    ref = { wp : plot.LimitTGraphFromJSONFile(splitsrc[0], wp) for wp in ratio_src_wp }
+
     for gr_set in graph_sets:
         ratio_set = {}
 
-        #for key in gr_set:
-        key = 'exp0'
-        ratio_set[key] = plot.GraphDivide(gr_set[key], ref)
+        for key in ratio_src_wp:
+            ratio_set[key] = plot.GraphDivide(gr_set[key], ref[key], True)
         ratio_graph_sets.append(ratio_set)
         plot.DrawLimitBand(pads[1], ratio_graph_sets[-1])
         pads[1].RedrawAxis()
         pads[1].RedrawAxis('g')
         pads[1].GetFrame().Draw()
+
     for gr in graphs:
-        ratio_graphs.append(plot.GraphDivide(gr, ref))
+        ratio_graphs.append(plot.GraphDivide(gr, ref[splitsrc[1]]), True)
         ratio_graphs[-1].Draw('LP')
+
     ry_min, ry_max = (plot.GetPadYMin(pads[1]), plot.GetPadYMax(pads[1]))
     plot.FixBothRanges(pads[1], ry_min, 0.1, ry_max, 0.1)
 
