@@ -328,6 +328,23 @@ def TwoPadSplit(split_point, gap_low, gap_high):
     result = [upper, lower]
     return result
 
+def ThreePadSplit(upper_split_point, split_point, gap_low, gap_high):
+    upper2 = R.TPad('upper2', 'upper2', 0., 0., 1., 1.)
+    upper2.SetTopMargin(1 - upper_split_point)
+    upper2.SetBottomMargin(split_point + gap_high)
+    upper2.SetFillStyle(4000)
+    upper2.Draw()
+    upper1 = R.TPad('upper1', 'upper1', 0., 0., 1., 1.)
+    upper1.SetBottomMargin(upper_split_point)
+    upper1.SetFillStyle(4000)
+    upper1.Draw()
+    lower = R.TPad('lower', 'lower', 0., 0., 1., 1.)
+    lower.SetTopMargin(1 - split_point + gap_low)
+    lower.SetFillStyle(4000)
+    lower.Draw()
+    upper1.cd()
+    result = [upper1, lower, upper2]
+    return result
 
 def MultiRatioSplit(split_points, gaps_low, gaps_high):
     """Create a set of TPads split vertically on the TCanvas
@@ -379,6 +396,22 @@ def TwoPadSplitColumns(split_point, gap_left, gap_right):
     return result
 
 
+def MultiRatioSplitColumns(split_points, gaps_left, gaps_right):
+    pads = []
+    for i in xrange(len(split_points)+1):
+        pad = R.TPad('pad%i'%i, '', 0., 0., 1., 1.)
+        if i > 0:
+            pad.SetLeftMargin(sum(split_points[0:i])+gaps_left[i-1])
+        if i < len(split_points):
+            pad.SetRightMargin(1.-sum(split_points[0:i+1])+gaps_right[i])
+        pad.SetFillStyle(4000)
+        pad.Draw()
+        pads.append(pad)
+    pads[0].cd()
+    # pads.reverse()
+    return pads
+
+
 def SetupTwoPadSplitAsRatio(pads, upper, lower, y_title, y_centered,
                                y_min, y_max):
     if lower.GetXaxis().GetTitle() == '':
@@ -395,6 +428,19 @@ def SetupTwoPadSplitAsRatio(pads, upper, lower, y_title, y_centered,
     if y_max > y_min:
         lower.SetMinimum(y_min)
         lower.SetMaximum(y_max)
+
+
+def StandardAxes(xaxis, yaxis, var, units, fmt='.1f'):
+    width = xaxis.GetBinWidth(1)
+    w_label = ("%"+fmt) % width
+    if units == "":
+        xaxis.SetTitle(var)
+        yaxis.SetTitle("Events / " + w_label)
+    else:
+        xaxis.SetTitle(var + " (" + units + ")")
+        yaxis.SetTitle("Events / " + w_label + " " + units)
+
+
 
 ##@}
 
@@ -950,6 +996,18 @@ def RemoveGraphYAbove(graph, val):
             break
 
 
+def SetMinToZero(graph):
+    min = 999.
+    minNum = -1
+    for i in xrange(graph.GetN()):
+        if graph.GetY()[i] < min :
+            min = graph.GetY()[i]
+            minNum = i
+    for i in xrange(graph.GetN()):
+        graph.SetPoint(i, graph.GetX()[i], graph.GetY()[i]-min)
+    
+
+
 def ImproveMinimum(graph, func, doIt=False):
     fit_x = 0.
     fit_y = 999.
@@ -1056,8 +1114,33 @@ def ReZeroTGraph(gr, doIt=False):
                 before = gr.GetY()[i]
                 gr.GetY()[i] -= min_y
                 after = gr.GetY()[i]
-                print 'Point %i, before=%f, after=%f' % (i, before, after)
+                # print 'Point %i, before=%f, after=%f' % (i, before, after)
     return min_y
+
+def FilterGraph(gr, n=3):
+    counter = 0
+    remove_list = []
+    for i in xrange(gr.GetN()):
+        if gr.GetY()[i] == 0.:
+            continue
+        if counter % n < (n - 1):
+            remove_list.append(i)
+        counter += 1
+
+    for i in reversed(remove_list):
+        gr.RemovePoint(i)
+
+
+def RemoveInXRange(gr, xmin=0, xmax=1):
+    remove_list = []
+    for i in xrange(gr.GetN()):
+        if gr.GetY()[i] == 0.:
+            continue
+        if gr.GetX()[i] > xmin and gr.GetX()[i] < xmax:
+            remove_list.append(i)
+
+    for i in reversed(remove_list):
+        gr.RemovePoint(i)
 
 
 def RemoveNearMin(graph, val, spacing=None):
@@ -1249,6 +1332,43 @@ def FixOverlay():
     R.gPad.GetFrame().Draw()
     R.gPad.RedrawAxis()
 
+
+def FixBoxPadding(pad, box, frac):
+    # Get the bounds of the box - these are in the normalised
+    # Pad co-ordinates.
+    p_x1 = box.GetX1()
+    p_x2 = box.GetX2()
+    p_y1 = box.GetY1()
+
+    #Convert to normalised co-ordinates in the frame
+    f_x1 = (p_x1 - pad.GetLeftMargin()) / (1. - pad.GetLeftMargin() - pad.GetRightMargin())
+    f_x2 = (p_x2 - pad.GetLeftMargin()) / (1. - pad.GetLeftMargin() - pad.GetRightMargin())
+    f_y1 = (p_y1 - pad.GetBottomMargin()) / (1. - pad.GetTopMargin() - pad.GetBottomMargin())
+
+    # Extract histogram providing the frame and axes
+    hobj = GetAxisHist(pad)
+
+    xmin = hobj.GetBinLowEdge(hobj.GetXaxis().GetFirst())
+    xmax = hobj.GetBinLowEdge(hobj.GetXaxis().GetLast()+1)
+    ymin = hobj.GetMinimum()
+    ymax = hobj.GetMaximum()
+
+    # Convert box bounds to x-axis values
+    a_x1 = xmin + (xmax - xmin) * f_x1
+    a_x2 = xmin + (xmax - xmin) * f_x2
+
+    # Get the histogram maximum in this range, given as y-axis value
+    a_max_h = GetPadYMaxInRange(pad, a_x1, a_x2)
+
+    # Convert this to a normalised frame value
+    f_max_h = (a_max_h - ymin) / (ymax - ymin);
+    if R.gPad.GetLogy():
+        f_max_h = (math.log10(a_max_h) - math.log10(ymin)) / (math.log10(ymax) - math.log10(ymin))
+
+    if f_y1 - f_max_h < frac:
+        f_target = 1. - (f_y1 - frac)
+        FixTopRange(pad, a_max_h, f_target)
+
 ##@}
 
 ## @name Decoration
@@ -1377,8 +1497,11 @@ def DrawCMSLogo(pad, cmsText, extraText, iPosX, relPosX, relPosY, relExtraDY, ex
         latex.DrawLatex(posX_, posY_, extraText)
 
 
-def PositionedLegend(width, height, pos, offset):
+def PositionedLegend(width, height, pos, offset, horizontaloffset=None):
     o = offset
+    ho = horizontaloffset
+    if not ho:
+      ho = o
     w = width
     h = height
     l = R.gPad.GetLeftMargin()
@@ -1386,19 +1509,19 @@ def PositionedLegend(width, height, pos, offset):
     b = R.gPad.GetBottomMargin()
     r = R.gPad.GetRightMargin()
     if pos == 1:
-        return R.TLegend(l + o, 1 - t - o - h, l + o + w, 1 - t - o, '', 'NBNDC')
+        return R.TLegend(l + ho, 1 - t - o - h, l + ho + w, 1 - t - o, '', 'NBNDC')
     if pos == 2:
         c = l + 0.5 * (1 - l - r)
         return R.TLegend(c - 0.5 * w, 1 - t - o - h, c + 0.5 * w, 1 - t - o, '', 'NBNDC')
     if pos == 3:
-        return R.TLegend(1 - r - o - w, 1 - t - o - h, 1 - r - o, 1 - t - o, '', 'NBNDC')
+        return R.TLegend(1 - r - ho - w, 1 - t - o - h, 1 - r - ho, 1 - t - o, '', 'NBNDC')
     if pos == 4:
-        return R.TLegend(l + o, b + o, l + o + w, b + o + h, '', 'NBNDC')
+        return R.TLegend(l + ho, b + o, l + ho + w, b + o + h, '', 'NBNDC')
     if pos == 5:
         c = l + 0.5 * (1 - l - r)
         return R.TLegend(c - 0.5 * w, b + o, c + 0.5 * w, b + o + h, '', 'NBNDC')
     if pos == 6:
-        return R.TLegend(1 - r - o - w, b + o, 1 - r - o, b + o + h, '', 'NBNDC')
+        return R.TLegend(1 - r - ho - w, b + o, 1 - r - ho, b + o + h, '', 'NBNDC')
 
 
 def DrawHorizontalLine(pad, line, yval):
@@ -1410,12 +1533,18 @@ def DrawHorizontalLine(pad, line, yval):
 
 def DrawVerticalLine(pad, line, xval):
     axis = GetAxisHist(pad)
-    ymin = axis.GetMinimum()
-    ymax = axis.GetMaximum()
+    ymin = axis.GetYaxis().GetXmin()
+    ymax = axis.GetYaxis().GetXmax()
     line.DrawLine(xval, ymin, xval, ymax)
 
+def DrawVerticalBand(pad, box, x1, x2):
+    axis = GetAxisHist(pad)
+    ymin = axis.GetYaxis().GetXmin()
+    ymax = axis.GetYaxis().GetXmax()
+    box.DrawBox(x1, ymin, x2, ymax)
 
-def DrawTitle(pad, text, align):
+
+def DrawTitle(pad, text, align, textOffset=0.2):
     pad_backup = R.gPad
     pad.cd()
     t = pad.GetTopMargin()
@@ -1428,7 +1557,6 @@ def DrawTitle(pad, text, align):
         pad_ratio = 1.
 
     textSize = 0.6
-    textOffset = 0.2
 
     latex = R.TLatex()
     latex.SetNDC()
@@ -1653,6 +1781,15 @@ def fillTH2(hist2d, graph):
             yc = hist2d.GetYaxis().GetBinCenter(y)
             val = graph.Interpolate(xc, yc)
             hist2d.SetBinContent(x, y, val)
+
+def fillInvertedTH2(hist2d, graph):
+    for x in xrange(1, hist2d.GetNbinsX() + 1):
+        for y in xrange(1, hist2d.GetNbinsY() + 1):
+            xc = hist2d.GetXaxis().GetBinCenter(x)
+            yc = hist2d.GetYaxis().GetBinCenter(y)
+            val = graph.Interpolate(xc, yc)
+            hist2d.SetBinContent(x, y, 1-val)
+
 
 
 # Functions 'NewInterpolate' and 'rebin' are taken, translated and modified into python from:

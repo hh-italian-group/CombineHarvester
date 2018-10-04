@@ -13,7 +13,7 @@ config.section_('JobType')
 config.JobType.pluginName = 'PrivateMC'
 config.JobType.psetName = os.environ['CMSSW_BASE']+'/src/CombineHarvester/CombineTools/scripts/do_nothing_cfg.py'
 config.JobType.scriptExe = ''
-config.JobType.inputFiles = [os.environ['CMSSW_BASE']+'/src/CombineHarvester/CombineTools/scripts/FrameworkJobReport.xml', os.environ['CMSSW_BASE']+'/bin/'+os.environ['SCRAM_ARCH']+'/combine']
+config.JobType.inputFiles = [os.environ['CMSSW_BASE']+'/src/CombineHarvester/CombineTools/scripts/FrameworkJobReport.xml', os.environ['CMSSW_BASE']+'/src/CombineHarvester/CombineTools/scripts/copyRemoteWorkspace.sh', os.environ['CMSSW_BASE']+'/bin/'+os.environ['SCRAM_ARCH']+'/combine']
 config.JobType.outputFiles = ['combine_output.tar']
 # config.JobType.maxMemoryMB = args.maxMemory
 
@@ -28,5 +28,5 @@ config.Data.outputDatasetTag = ''
 config.section_('User')
 
 config.section_('Site')
-config.Site.blacklist = ['T3_IT_Bologna']
+config.Site.blacklist = ['T3_IT_Bologna','T3_US_UMiss']
 config.Site.storageSite = 'T2_CH_CERN'
